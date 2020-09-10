@@ -5,11 +5,13 @@ from PIL import Image, ImageDraw, ImageFont, ImageSequence
 import cv2
 import numpy as np
 import os
+from tof2image import Bin_2_Array
+from time import time
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load model checkpoint
-checkpoint = "D:\media\ssd\ssd_data\Experimentos\outputs\checkpoint_custom_ssd300v2.pth.tar"
+checkpoint = "D:/media/ssd/ssd_data/Experimentos/outputs/checkpoint_custom_ssd300v2.pth.tar"
 checkpoint = torch.load(checkpoint)
 start_epoch = checkpoint['epoch'] + 1
 print('\nLoaded checkpoint from epoch %d.\n' % start_epoch)
@@ -164,18 +166,67 @@ def video_detect(video_filepath,output_mode= "video"):
         detection=detect(image, min_score=0.30, max_overlap=0.25, top_k=200)
         index += 1
 
-if __name__ == '__main__':
-    folders = ["D:/media/ssd/ssd_data/Experimentos/bin_exp1",
-                     "D:/media/ssd/ssd_data/Experimentos/bin_exp2",
-                     "D:/media/ssd/ssd_data/Experimentos/bin_exp3"]
+def frame2video_detect(folders,video_output,fps=30,shape=(320,240)):
     for folder in folders:
         img_folder=folder+"/JPEGImages"
+        exp_name=folder.split("/")[-1]
+        output_path=video_output+"/"+str(exp_name)+'_output2.avi' #_output2.avi'
+        fourcc=cv2.VideoWriter_fourcc('M', 'J', 'P', 'G') #'m', 'p', '4', 'v'
+        #from IPython import embed; embed()
+        out = cv2.VideoWriter(output_path, fourcc, fps, shape)
+
         for image_file in  os.listdir(img_folder):
             img_path =img_folder+"/"+image_file
             original_image = Image.open(img_path, mode='r')
             original_image = original_image.convert('RGB')
-            detect(original_image, min_score=0.30, max_overlap=0.2, top_k=200).show()
+            annotated = detect(original_image, min_score=0.30, max_overlap=0.2, top_k=200)
+            out.write(np.array(annotated))
 
-            from IPython import embed;embed()
+        out.release()
+
+def binfile2video_detect(bin_input_fld,video_output,start_frame=0,max_frames=1000,frame_skip=1,
+                        file_type="Amplitude",fps=30,shape=(320,240)):
+    video_buffer=Bin_2_Array(bin_input_fld).reshaped_grouped()
+    exp_name=bin_input_fld.split("/")[-1]
+    types={"Amplitude":0, "Ambient":1, "Depth":2, "Phase":3}
+    output_path=video_output+"/"+str(exp_name)+"-"+str(file_type)+'_output_complete.avi' #_output2.avi'
+    fourcc=cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
+
+    out = cv2.VideoWriter(output_path, fourcc, fps, shape)
+    inference_perf=[]
+    for num, fs in enumerate(range(start_frame,max_frames,frame_skip)):
+        frame=np.array(video_buffer[fs,types[file_type],:,:])
+
+        if file_type=="Amplitude":
+            mask=frame>400
+            frame[mask]=450
+        #from IPython import embed; embed()
+        image = Image.fromarray(frame)
+        image=image.convert('RGB')
+        start_time=time()
+        annotated = detect(image, min_score=0.30, max_overlap=0.25, top_k=200)
+        end_time=time()
+        inference_perf.append( round ( 1/ (end_time-start_time) ) )
+        out.write(np.array(annotated))
+    inference_perf_arr=np.array(inference_perf)
+    print("Max Inference:", inference_perf_arr.max(), "FPS")
+    print("Avg Inference:", inference_perf_arr.mean(), "FPS")
+    print("Min Inference:", inference_perf_arr.min(), "FPS")
+    out.release()
+
+
+
+if __name__ == '__main__':
+    folders = [ "D:/media/ssd/ssd_data/Experimentos/bin_exp1",      
+                "D:/media/ssd/ssd_data/Experimentos/bin_exp2",
+                "D:/media/ssd/ssd_data/Experimentos/bin_exp3"]
+    #"D:/media/ssd/ssd_data/Experimentos/bin_exp1",
+    video_output="D:/media/ssd/ssd_data/Experimentos/outputs/videos"
+
+    for bin_input_fld in folders:
+
+        binfile2video_detect(bin_input_fld,video_output,start_frame=0,max_frames=1000,frame_skip=1,
+                            file_type="Amplitude",fps=30,shape=(320,240))
+        #from IPython import embed;embed()
         # video_path = "D:/media/ssd/ssd_data/Teste/dog_cacau.mp4"
         # video_detect(video_path,output_mode= "video")
