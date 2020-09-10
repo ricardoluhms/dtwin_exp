@@ -3,10 +3,10 @@ from torch.utils.data import Dataset
 import json
 import os
 from PIL import Image
-from utils import transform
+from utilsv2 import transform
 
 
-class PascalVOCDataset(Dataset):
+class Custom_Dataset(Dataset):
     """
     A PyTorch Dataset class to be used in a PyTorch DataLoader to create batches.
     """
@@ -51,7 +51,6 @@ class PascalVOCDataset(Dataset):
 
         # Apply transformations
         image, boxes, labels, difficulties = transform(image, boxes, labels, difficulties, split=self.split)
-
         return image, boxes, labels, difficulties
 
     def __len__(self):

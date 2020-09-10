@@ -2,30 +2,32 @@ import time
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-from model import SSD300, MultiBoxLoss
-from datasets import PascalVOCDataset
-from utils import *
+from model_mod import SSD300, MultiBoxLoss
+from datasets_mod import Custom_Dataset
+from utilsv2 import *
 
 # Data parameters
-data_folder = 'd:/media/ssd/output'  # folder with data files
-keep_difficult = True  # use objects considered difficult to detect?
+data_folder = "D:\media\ssd\ssd_data\Experimentos\outputs"  # folder with data files #### Modify 
+keep_difficult = True  # use objects considered difficult to detect? #### Modify 
 
 # Model parameters
 # Not too many here since the SSD300 has a very specific structure
-n_classes = len(label_map)  # number of different types of objects
+
+""" import json label map"""
+n_classes = 6 #len(6)  # number of different types of objects #### Modify 
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = torch.device("cuda")
 
 # Learning parameters
-checkpoint_path = 'd:/media/ssd/output/checkpoint_ssd300.pth.tar'
+checkpoint_path = "D:\media\ssd\ssd_data\Experimentos\outputs\checkpoint_custom_ssd300v2.pth.tar" #### Modify 
 checkpoint = None  # path to model checkpoint, None if none
-batch_size = 6  # batch size
+batch_size = 24  # batch size
 iterations = 100000  # number of iterations to train
 workers = 4  # number of workers for loading data in the DataLoader
 print_freq = 200  # print training status every __ batches
-lr = 1e-3  # learning rate
+lr = 3e-4  # learning rate
 decay_lr_at = [50000, 80000]  # decay learning rate after these many iterations
-decay_lr_to = 0.1  # decay learning rate to this fraction of the existing learning rate
+decay_lr_to = 0.5  # decay learning rate to this fraction of the existing learning rate
 momentum = 0.9  # momentum
 weight_decay = 5e-4  # weight decay
 grad_clip = None  # clip if gradients are exploding, which may happen at larger batch sizes (sometimes at 32) - you will recognize it by a sorting error in the MuliBox loss calculation
@@ -43,7 +45,9 @@ def main():
     if checkpoint is None:
         start_epoch = 0
         model = SSD300(n_classes=n_classes)
-        
+        print(100*"#")
+        print("SSD300 Imported")
+        print(100*"#")
         # Initialize the optimizer, with twice the default learning rate for biases, as in the original Caffe repo
         biases = list()
         not_biases = list()
@@ -66,15 +70,21 @@ def main():
     # Move to default device
     model = model.to(device)
     criterion = MultiBoxLoss(priors_cxcy=model.priors_cxcy).to(device)
-
-    # Custom dataloaders
-    train_dataset = PascalVOCDataset(data_folder,
+    
+    print("train_dataset start")
+    print(100*"#")
+    # Custom dataloaders #### Modify 
+    train_dataset = Custom_Dataset(data_folder,
                                      split='train',
                                      keep_difficult=keep_difficult)
+
+    print("train_dataset end")
+    print(100*"#")
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
                                                collate_fn=train_dataset.collate_fn, num_workers=workers,
                                                pin_memory=True)  # note that we're passing the collate function here
-
+    print("train_loader end")
+    print(100*"#")
     # Calculate total number of epochs to train and the epochs to decay learning rate at (i.e. convert iterations to epochs)
     # To convert iterations to epochs, divide iterations by the number of iterations per epoch
     # The paper trains for 120,000 iterations with a batch size of 32, decays after 80,000 and 100,000 iterations

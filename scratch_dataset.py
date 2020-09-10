@@ -186,10 +186,12 @@ class XMLer():
         final=ET.fromstring(reparsed.toprettyxml(indent="  "))
         return final
 
-    
     def add_object(self,obj_name,coord=[]):
         obj=ET.SubElement(self.root, "object")
         ET.SubElement(obj,"name").text=str(obj_name)
+        ET.SubElement(obj,"pose").text="Unspecified"
+        ET.SubElement(obj,"truncated").text=str(0)
+        ET.SubElement(obj,"difficult").text=str(0)
         bbox=ET.SubElement(obj,"bndbox")
         ET.SubElement(bbox,"xmin").text=str(coord[0]) #xmin
         ET.SubElement(bbox,"ymin").text=str(coord[1]) #ymin
@@ -210,6 +212,19 @@ class XMLreader(XMLer):
             for obj in root.iter("object"):
                 new_value=rename_dict[obj.find("name").text]
                 obj.find("name").text=new_value
+            
+            root=self.prettify(root)
+            tree=ET.ElementTree(root)
+            tree.write(self.xaf+"/"+file)
+    
+    def add_difficult(self):
+        for file in os.listdir(self.xaf):
+            tree = ET.parse(self.xaf+"/"+file)
+            root = tree.getroot()
+            for obj in root.iter("object"):
+                ET.SubElement(obj,"pose").text="Unspecified"
+                ET.SubElement(obj,"truncated").text=str(0)
+                ET.SubElement(obj,"difficult").text=str(0)
             
             root=self.prettify(root)
             tree=ET.ElementTree(root)
@@ -397,7 +412,11 @@ class Create_Dataset():
         root = tree.getroot()
         boxes = list()
         labels = list()
+        difficulties = list()
+
         for object in root.iter('object'):
+
+            difficult = int(object.find('difficult').text == '1')
 
             label = object.find('name').text.lower().strip()
             if label not in self.label_map:
@@ -410,8 +429,9 @@ class Create_Dataset():
 
             boxes.append([xmin, ymin, xmax, ymax])
             labels.append(self.label_map[label])
+            difficulties.append(difficult)
 
-        return {'boxes': boxes, 'labels': labels}
+        return {'boxes': boxes, 'labels': labels, 'difficulties': difficulties}
 
     def update_labels(self,labels):
         label_map = {k: v + 1 for v, k in enumerate(labels)}
@@ -486,9 +506,9 @@ class Create_Dataset():
             
 if __name__ == '__main__':
 
-    folders = ["D:/media/ssd/ssd_data/Experimentos/bin_exp1",
-                    "D:/media/ssd/ssd_data/Experimentos/bin_exp2",
-                    "D:/media/ssd/ssd_data/Experimentos/bin_exp3"]
+    # folders = ["D:/media/ssd/ssd_data/Experimentos/bin_exp1",
+    #                 "D:/media/ssd/ssd_data/Experimentos/bin_exp2",
+    #                 "D:/media/ssd/ssd_data/Experimentos/bin_exp3"]
 
     # print(100*"#")
     # print(5*""+"Running Labeller")
@@ -510,20 +530,21 @@ if __name__ == '__main__':
     #                 user_name="Luhm",video_type="bin")
     #     an.all_frames(objects=objects_per_scene[num])
 
-    # ### rename Labels / Annotate ##
+    ### rename Labels / Annotate ##
     # for num, folder in enumerate(folders):
     #     print(5*""+"Renaming Standard Labels folder", folder)
     #     print(100*"#")
     #     xml = XMLreader(folder+"/Annotation")
     #     xml.rename(renamed_objects[num])
 
-    json_output= "D:/media/ssd/ssd_data/Experimentos/outputs"
-    ### Create Merged Dataset with all experiments/folders
+    # json_output= "D:/media/ssd/ssd_data/Experimentos/outputs"
+    # # ### Create Merged Dataset with all experiments/folders
 
-    print(5*""+"Creating Merge Dataset Outputs")
-    print(100*"#")
-    cdts=Create_Dataset(dataset_paths = folders, json_output= json_output,
-                     labels=('cubo_gran', 'cubo_peq', 'piramide_gran', 'piramide_peq', 'esfera'))
-    cdts.split_shuffle()
-    cdts.merge()
-    #from IPython import embed; embed()
+    # print(5*""+"Creating Merge Dataset Outputs")
+    # print(100*"#")
+    # cdts=Create_Dataset(dataset_paths = folders, json_output= json_output,
+    #                  labels=('cubo_gran', 'cubo_peq', 'piramide_gran', 'piramide_peq', 'esfera'))
+    # cdts.split_shuffle()
+    # cdts.merge()
+
+    from IPython import embed; embed()

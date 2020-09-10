@@ -1,14 +1,15 @@
 
 from torchvision import transforms
-from utils import *
+from utilsv2 import *
 from PIL import Image, ImageDraw, ImageFont, ImageSequence
 import cv2
 import numpy as np
+import os
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load model checkpoint
-checkpoint = 'd:/media/ssd/output/checkpoint_ssd300.pth.tar'
+checkpoint = "D:\media\ssd\ssd_data\Experimentos\outputs\checkpoint_custom_ssd300v2.pth.tar"
 checkpoint = torch.load(checkpoint)
 start_epoch = checkpoint['epoch'] + 1
 print('\nLoaded checkpoint from epoch %d.\n' % start_epoch)
@@ -22,6 +23,14 @@ to_tensor = transforms.ToTensor()
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])
 
+labels=('cubo_gran', 'cubo_peq', 'piramide_gran', 'piramide_peq', 'esfera')
+label_map = {k: v + 1 for v, k in enumerate(labels)}
+label_map['background'] = 0
+rev_label_map = {v: k for k, v in label_map.items()}
+distinct_colors = ['#e6194b', '#3cb44b', '#ffe119', '#0082c8', '#f58231', '#911eb4', '#46f0f0', '#f032e6',
+                   '#d2f53c', '#fabebe', '#008080', '#000080', '#aa6e28', '#fffac8', '#800000', '#aaffc3', '#808000',
+                   '#ffd8b1', '#e6beff', '#808080', '#FFFFFF']
+label_color_map = {k: distinct_colors[i] for i, k in enumerate(label_map.keys())}
 
 def detect(original_image, min_score, max_overlap, top_k, suppress=None):
     """
@@ -156,10 +165,17 @@ def video_detect(video_filepath,output_mode= "video"):
         index += 1
 
 if __name__ == '__main__':
-    img_path = "D:/media/ssd/ssd_data/Teste/now_uni.jpeg"
-    #img_path = 'D:/media/ssd/ssd_data/VOC2007/JPEGImages/000289.jpg'
-    original_image = Image.open(img_path, mode='r')
-    original_image = original_image.convert('RGB')
-    detect(original_image, min_score=0.30, max_overlap=0.2, top_k=200).show()
-    # video_path = "D:/media/ssd/ssd_data/Teste/dog_cacau.mp4"
-    # video_detect(video_path,output_mode= "video")
+    folders = ["D:/media/ssd/ssd_data/Experimentos/bin_exp1",
+                     "D:/media/ssd/ssd_data/Experimentos/bin_exp2",
+                     "D:/media/ssd/ssd_data/Experimentos/bin_exp3"]
+    for folder in folders:
+        img_folder=folder+"/JPEGImages"
+        for image_file in  os.listdir(img_folder):
+            img_path =img_folder+"/"+image_file
+            original_image = Image.open(img_path, mode='r')
+            original_image = original_image.convert('RGB')
+            detect(original_image, min_score=0.30, max_overlap=0.2, top_k=200).show()
+
+            from IPython import embed;embed()
+        # video_path = "D:/media/ssd/ssd_data/Teste/dog_cacau.mp4"
+        # video_detect(video_path,output_mode= "video")
